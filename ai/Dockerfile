@@ -26,7 +26,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 
 # Set Java options and port from environment variables
 ENV JAVA_OPTS=""
-ENV PORT=${PORT:8080}
+ENV PORT 8080
 EXPOSE ${PORT}
 
 # Run the application
