@@ -1,34 +1,12 @@
-# ---- This is the BUILD stage ----
-# Use the official Maven image which contains Eclipse Temurin (Java 17) to build the app
-FROM maven:3.9.6-eclipse-temurin-17 AS build
-WORKDIR /workspace
-
-# Copy the build files
-# Copy the build files from the sibling 'backend' directory
-COPY ../backend/pom.xml .
-COPY ../backend/.mvn .mvn
-COPY ../backend/mvnw .
-COPY ../backend/src src
-
-# Build the application JAR
-RUN mvn -B -e -q -DskipTests package
-
-# ---- This is the FINAL stage ----
-# Use a lightweight Java Runtime Environment
-FROM eclipse-temurin:17-jre-jammy
+# Example for a Python AI service
+FROM python:3.10-slim
 WORKDIR /app
 
-# Copy the built JAR from the 'build' stage
-COPY --from=build /workspace/target/*.jar app.jar
+# Copy the AI-specific files from the 'ai' subdir
+COPY ai/requirements.txt .
+COPY ai/main.py .
+COPY ai/model.pkl .
 
-# Health check (this is a good practice)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
-
-# Set Java options and port from environment variables
-ENV JAVA_OPTS=""
-ENV PORT 8080
-EXPOSE ${PORT}
-
-# Run the application
-ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.port=${PORT}"]
+RUN pip install --no-cache-dir -r requirements.txt
+EXPOSE 8000
+CMD ["uvicorn", "ai.main:app", "--host", "0.0.0.0", "--port", "8000"]

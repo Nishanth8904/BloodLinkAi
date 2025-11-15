@@ -1,34 +1,30 @@
 # ---- This is the BUILD stage ----
-# Use the official Maven image which contains Eclipse Temurin (Java 17) to build the app
+# Use the official Maven image to build the app
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /workspace
 
-# Copy the build files
-# Copy the build files from the sibling 'backend' directory
-COPY ../backend/pom.xml .
-COPY ../backend/.mvn .mvn
-COPY ../backend/mvnw .
-COPY ../backend/src src
+# Copy the build files from the 'backend' subdir
+# Docker's build context is the repository root
+COPY backend/pom.xml .
+COPY backend/.mvn .mvn
+COPY backend/mvnw .
+COPY backend/src src
 
 # Build the application JAR
 RUN mvn -B -e -q -DskipTests package
 
 # ---- This is the FINAL stage ----
-# Use a lightweight Java Runtime Environment
+# Use a lightweight Java Runtime
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # Copy the built JAR from the 'build' stage
 COPY --from=build /workspace/target/*.jar app.jar
 
-# Health check (this is a good practice)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
-
-# Set Java options and port from environment variables
+# Set Java options and a default port
 ENV JAVA_OPTS=""
 ENV PORT 8080
 EXPOSE ${PORT}
 
-# Run the application
+# Run the application (Render will override $PORT)
 ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.port=${PORT}"]
