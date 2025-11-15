@@ -5,11 +5,11 @@ WORKDIR /workspace
 
 # Copy the build files from the 'backend' subdir
 # Docker's build context is the repository root
-COPY backend/pom.xml .
-COPY backend/.mvn .mvn
-COPY backend/mvnw .
-COPY backend/src src
-
+# Copy the build files (context is already 'backend/')
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+COPY src src
 # Build the application JAR
 RUN mvn -B -e -q -DskipTests package
 
