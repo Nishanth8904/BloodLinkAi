@@ -68,7 +68,11 @@
             <scope>runtime</scope>
             <optional>true</optional>
         </dependency>
-
+<dependency>
+    <groupId>org.postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <scope>runtime</scope>
+</dependency>
         <!-- Spring Boot Configuration Processor -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
