@@ -4,10 +4,11 @@ FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /workspace
 
 # Copy the build files
-COPY pom.xml .
-COPY .mvn .mvn
-COPY mvnw .
-COPY src src
+# Copy the build files from the sibling 'backend' directory
+COPY ../backend/pom.xml .
+COPY ../backend/.mvn .mvn
+COPY ../backend/mvnw .
+COPY ../backend/src src
 
 # Build the application JAR
 RUN mvn -B -e -q -DskipTests package
