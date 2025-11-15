@@ -1,33 +1,33 @@
-FROM openjdk:17-jdk-slim
+# ---- This is the BUILD stage ----
+# Use the official Maven image which contains Eclipse Temurin (Java 17) to build the app
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+WORKDIR /workspace
 
-# Set working directory
+# Copy the build files
+COPY pom.xml .
+COPY .mvn .mvn
+COPY mvnw .
+COPY src src
+
+# Build the application JAR
+RUN mvn -B -e -q -DskipTests package
+
+# ---- This is the FINAL stage ----
+# Use a lightweight Java Runtime Environment
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Copy the built JAR from the 'build' stage
+COPY --from=build /workspace/target/*.jar app.jar
 
-# Copy Maven wrapper and pom.xml
-COPY .mvn/ .mvn
-COPY mvnw pom.xml ./
+# Health check (this is a good practice)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
 
-# Download dependencies (for better Docker layer caching)
-RUN chmod +x ./mvnw && ./mvnw dependency:resolve
-
-# Copy source code
-COPY src ./src
-
-# Build the application
-RUN ./mvnw clean package -DskipTests
-
-# Copy the built jar file
-RUN cp target/*.jar app.jar
-
-# Expose port
-EXPOSE 8080
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/api/health || exit 1
+# Set Java options and port from environment variables
+ENV JAVA_OPTS=""
+ENV PORT=${PORT:8080}
+EXPOSE ${PORT}
 
 # Run the application
-CMD ["java", "-jar", "app.jar"]
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.port=${PORT}"]

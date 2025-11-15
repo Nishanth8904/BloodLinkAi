@@ -1,29 +1,33 @@
-# ---------- build stage ----------
+# ---- This is the BUILD stage ----
+# Use the official Maven image which contains Eclipse Temurin (Java 17) to build the app
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /workspace
 
-# copy maven wrapper / pom / sources
-COPY pom.xml mvnw ./
+# Copy the build files
+COPY pom.xml .
 COPY .mvn .mvn
-# download dependencies (speed up rebuilds)
-RUN mvn -B -e -q dependency:go-offline
+COPY mvnw .
+COPY src src
 
-# copy source and build jar
-COPY src ./src
+# Build the application JAR
 RUN mvn -B -e -q -DskipTests package
 
-# ---------- runtime stage ----------
+# ---- This is the FINAL stage ----
+# Use a lightweight Java Runtime Environment
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# copy the fat jar from build stage (Spring Boot repackage name pattern)
-COPY --from=build /workspace/target/*-SNAPSHOT.jar app.jar
-# if your jar is not SNAPSHOT use: COPY --from=build /workspace/target/*.jar app.jar
+# Copy the built JAR from the 'build' stage
+COPY --from=build /workspace/target/*.jar app.jar
 
-# set the port via environment variable (Render provides $PORT)
+# Health check (this is a good practice)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Set Java options and port from environment variables
 ENV JAVA_OPTS=""
-ENV PORT=${PORT:-8080}
+ENV PORT=${PORT:8080}
 EXPOSE ${PORT}
 
-# run the app
+# Run the application
 ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.port=${PORT}"]
