@@ -1,26 +1,29 @@
-FROM python:3.11-slim
+# ---------- build stage ----------
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+WORKDIR /workspace
 
+# copy maven wrapper / pom / sources
+COPY pom.xml mvnw ./
+COPY .mvn .mvn
+# download dependencies (speed up rebuilds)
+RUN mvn -B -e -q dependency:go-offline
+
+# copy source and build jar
+COPY src ./src
+RUN mvn -B -e -q -DskipTests package
+
+# ---------- runtime stage ----------
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
+# copy the fat jar from build stage (Spring Boot repackage name pattern)
+COPY --from=build /workspace/target/*-SNAPSHOT.jar app.jar
+# if your jar is not SNAPSHOT use: COPY --from=build /workspace/target/*.jar app.jar
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# set the port via environment variable (Render provides $PORT)
+ENV JAVA_OPTS=""
+ENV PORT=${PORT:-8080}
+EXPOSE ${PORT}
 
-# Copy application code
-COPY . .
-
-# Expose port
-EXPOSE 8001
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8001/health || exit 1
-
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8001"]
+# run the app
+ENTRYPOINT ["sh","-c","java $JAVA_OPTS -jar /app/app.jar --server.port=${PORT}"]
